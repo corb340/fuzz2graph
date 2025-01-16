@@ -1,27 +1,14 @@
-#Tree class
-from os import rmdir
+import os
+from os import system
+from pathlib import Path
 
-from scipy.signal import spline_filter
+import anytree
+from anytree import Node
+from anytree.exporter import DotExporter
 
-
-class Tree:
-    """
-    Defines a class that gives a treeline
-    """
-
-    def __init__(self, page, tree = None):
-        """
-        :param page: Page
-        :param tree: Tree
-
-        Constructor of the Tree class.
-        """
-        self.__page = page
-        self._tree = tree
-
-    #def newNode(self, page):
-    #   return None
-
+#Static variables
+PAGES_LIST = []
+NODES_LIST = []
 
 #Page class
 class Page:
@@ -47,42 +34,84 @@ class Page:
         """
         :return: int
 
-        Getter of code parameter
+        Getter of code attribute
         """
         return self.__code
 
     def getUrl(self):
         """
-        Getter of url parameter
+        Getter of url attribute
         :return: str
         """
         return self.__url
 
+    def getSize(self):
+        """
+        Getter of size attribute
+        :return: str
+        """
+        return self.__size
+    def getRedirection(self):
+        """
+        Getter of Redirect attribute
+        :return: str
+        """
+        return self.__redirect
+
     def __str__(self):
         return '< class: Page | Code : {} | Size : {} | URL: {} | Redirection : {}'.format(self.__code,self.__size,self.__url,self.__redirect)
 
+
+#Page-Related Functions
 def parsePage(line):
-    start_array = line.strip().split("  ")
-    if len(start_array) == 4:
-        page = Page(start_array[0].strip(),start_array[1].strip(),start_array[2].strip())
-    elif len(start_array) == 5:
-        redirect = start_array[4].split(" ")
-        page = Page(int(start_array[0].strip()),start_array[1].strip(),start_array[2].strip(),redirect[-1])
+    page = None
+    split = line.strip().split()
+    split = [x for x in split if x not in {'->','REDIRECTS','TO:'}]
+    if len(split) == 3:
+        page = Page(split[0],split[1],split[2])
+    elif len(split) == 4:
+        page = Page(split[0], split[1], split[2],split[3])
     return page
+
+
+#Tree-related functions
+def buildTree(pages):
+    root = anytree.Node("/")
+    NODES_LIST.append(root)
+    try:
+        #non-recursive tree method
+        for page in pages:
+            filename = page.getUrl().split("/")[-1]
+            node = Node(filename,root)
+            NODES_LIST.append(node)
+        DotExporter(root).to_dotfile("sample.dot")
+        system("dot -Tpng sample.dot -o sample.png")
+
+
+    except anytree.TreeError:
+        print("[ERROR] Unable to produce tree.")
+
+
+
 
 def main():
     #parse the file
     log = open("sample/sample-depth-1", "r")
     line = log.readline()
     while line:
-        if line.startswith("#") or len(line) < 2:
+        if line.startswith("#"):
             line = log.readline()
             continue
         else:
             page = parsePage(line)
-            print(page.__str__())
+            if page is not None:
+                PAGES_LIST.append(page)
             line = log.readline()
-
+    buildTree(PAGES_LIST)
+    #print("LIST OF PAGES: ")
+    #for element in PAGES_LIST:
+    #    print(element.__str__())
+    #print("LIST OF NODES" + NODES_LIST.__str__())
 
 
 if __name__ == "__main__":
